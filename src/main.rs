@@ -1,21 +1,14 @@
-#![allow(unused)] // only in beginning
-
 use axum::{
-    Router,
     routing::get,
-    response::Html,
+    Router,
 };
-
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
-    let app = Router::new().route(
-            "/hello",
-            get(|| async { Html("<h1>Hello, World!</h1>")})
-    );
+    // build our application with a single route
+    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
 
-    // start the server
+    // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
