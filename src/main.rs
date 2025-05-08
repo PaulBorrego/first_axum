@@ -6,19 +6,26 @@ pub use self::error::{Error, Result};
 use axum::{
     Router,
     extract::{Path, Query},
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse,Response},
     routing::get,
+    middleware,
 };
 
 mod error;
 mod web;
 
 use serde::Deserialize;
+use tower_cookies::CookieManagerLayer;
 
 #[tokio::main]
 async fn main() {
     // build our application with a single route
-    let app = Router::new().merge(routes_hello());
+    let app = Router::new()
+        .merge(routes_hello())
+        .merge(web::routes_login::routes())
+        .layer(middleware::map_response(main_response_mapper))
+        .layer(CookieManagerLayer::new())
+        ;
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -27,31 +34,37 @@ async fn main() {
 }
 
 #[derive(Debug, Deserialize)]
-struct SchedulerRequest {
+struct ScheduleRequest {
     task: Option<String>,
 }
 
+async fn main_response_mapper(res: Response) -> Response {
+    println!("->> main_response_mapper");
+    
+    res
+}
+
 // /scheuler?task=example
-async fn handler_scheduler(Query(params): Query<SchedulerRequest>) -> impl IntoResponse {
-    println!("->> scheduler_handler - {:?}", params);
+async fn handler_schedule(Query(params): Query<ScheduleRequest>) -> impl IntoResponse {
+    println!("->> schedule_handler - {:?}", params);
 
     let task = params.task.as_deref().unwrap_or("No task provided");
     Html(format!(
-        "<h1>Scheduler</h1><h2>{task}</h2><p>This is the scheduler page.</p>"
+        "<h1>Schedule</h1><h2>{task}</h2><p>This is the schedule page.</p>"
     ))
 }
 
-// /scheduler/Paul
-async fn handler_scheduler_path(Path(name): Path<String>) -> impl IntoResponse {
-    println!("->> scheduler_handler - {:?}", name);
+// /schedule/Paul
+async fn handler_schedule_path(Path(name): Path<String>) -> impl IntoResponse {
+    println!("->> schedule_handler - {:?}", name);
 
     Html(format!(
-        "<h1>Scheduler</h1><h2>{name}</h2><p>This is the scheduler page.</p>"
+        "<h1>Schedule</h1><h2>{name}</h2><p>This is the schedule page.</p>"
     ))
 }
 
 fn routes_hello() -> Router {
     Router::new()
-        .route("/scheduler", get(handler_scheduler))
-        .route("/scheduler/{name}", get(handler_scheduler_path))
+        .route("/schedule", get(handler_schedule))
+        .route("/schedule/{name}", get(handler_schedule_path))
 }
