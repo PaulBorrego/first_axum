@@ -13,16 +13,23 @@ use axum::{
 
 mod error;
 mod web;
+mod model;
+
+use crate::model::ModelController;
 
 use serde::Deserialize;
 use tower_cookies::CookieManagerLayer;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
+    let mc = ModelController::new().await?;
+    let routes_api = web::routes_tickets::routes(mc.clone()).route_layer(middleware::from_fn(web::mw_auth::mw_require_auth));
+
     // build our application with a single route
     let app = Router::new()
         .merge(routes_hello())
         .merge(web::routes_login::routes())
+        .nest("/api", routes_api)
         .layer(middleware::map_response(main_response_mapper))
         .layer(CookieManagerLayer::new())
         ;
@@ -31,6 +38,8 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Listening on http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
+
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
